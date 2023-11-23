@@ -8,6 +8,7 @@ import { BadRequestError, UnauthorizedError } from '../errors';
 import { hashPassword, generateToken } from '../security';
 import { initTokenValidationRequestHandler, initAdminValidationRequestHandler, RequestAuth } from '../middleware/security';
 import { UserType } from '../constants';
+import bcrypt from 'bcrypt';
 
 export function initUsersRouter(sequelizeClient: SequelizeClient): Router {
   const router = Router({ mergeParams: true });
@@ -20,7 +21,7 @@ export function initUsersRouter(sequelizeClient: SequelizeClient): Router {
     .post(tokenValidation, adminValidation, initCreateUserRequestHandler(sequelizeClient));
 
   router.route('/login')
-    .post(tokenValidation, initLoginUserRequestHandler(sequelizeClient));
+    .post(initLoginUserRequestHandler(sequelizeClient));
   router.route('/register')
     .post(initRegisterUserRequestHandler(sequelizeClient));
 
@@ -83,7 +84,7 @@ function initLoginUserRequestHandler(sequelizeClient: SequelizeClient): RequestH
         throw new UnauthorizedError('EMAIL_OR_PASSWORD_INCORRECT');
       }
 
-      if (user.passwordHash !== hashPassword(password)) {
+      if (!await bcrypt.compare(password, user.passwordHash)){
         throw new UnauthorizedError('EMAIL_OR_PASSWORD_INCORRECT');
       }
 
@@ -134,8 +135,9 @@ async function createUser(data: CreateUserData, sequelizeClient: SequelizeClient
       throw new BadRequestError('EMAIL_ALREADY_USED');
     }
   }
+  const passwordHash = await hashPassword(password);
 
-  await models.users.create({ type, name, email, passwordHash: password });
+  await models.users.create({ type, name, email, passwordHash: passwordHash });
 }
 
 type CreateUserData = Pick<User, 'type' | 'name' | 'email'> & { password: User['passwordHash'] };

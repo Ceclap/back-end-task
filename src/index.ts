@@ -1,10 +1,14 @@
 import express from 'express';
+import dotenv from 'dotenv';
+
 
 import { initSequelizeClient } from './sequelize';
 import { initUsersRouter } from './routers';
 import { initErrorRequestHandler, initNotFoundRequestHandler } from './middleware';
 
 const PORT = 8080;
+
+dotenv.config();
 
 async function main(): Promise<void> {
   const app = express();

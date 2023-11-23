@@ -53,8 +53,17 @@ export function initTokenValidationRequestHandler(sequelizeClient: SequelizeClie
 // NOTE(roman): assuming that `tokenValidationRequestHandler` is placed before
 export function initAdminValidationRequestHandler(): RequestHandler {
   return function adminValidationRequestHandler(req, res, next): void {
-    throw new NotImplementedError('ADMIN_VALIDATION_NOT_IMPLEMENTED_YET');
-  };
+    try {
+      const {auth: {user: {type: userType}}} = req as unknown as { auth: RequestAuth };
+
+      if (userType !== UserType.ADMIN) {
+        throw new ForbiddenError('AUTH_ADMIN_REQUIRED');
+      }
+
+      return next();
+    } catch (error) {
+      return next(error);
+    }  };
 }
 
 export interface RequestAuth {
