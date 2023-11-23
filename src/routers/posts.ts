@@ -4,19 +4,21 @@ import {initAdminValidationRequestHandler, initTokenValidationRequestHandler, Re
 import {UserType} from '../constants';
 import {Op} from 'sequelize';
 import {Post} from '../repositories/posts';
-import {UnauthorizedError} from '../errors';
+import {HttpError, UnauthorizedError} from '../errors';
 
 export function initPostsRouter(sequelizeClient: SequelizeClient): Router {
     const router = Router({ mergeParams: true });
 
     const tokenValidation = initTokenValidationRequestHandler(sequelizeClient);
-    // const adminValidation = initAdminValidationRequestHandler();
+    const adminValidation = initAdminValidationRequestHandler();
 
     router.route('/')
         .get(tokenValidation, initListPostsRequestHandler(sequelizeClient))
         .post(tokenValidation, initCreatePostRequestHandler(sequelizeClient))
         .patch(tokenValidation, initUpdatePostRequestHandler(sequelizeClient))
         .delete(tokenValidation, initDeletePostRequestHandler(sequelizeClient));
+    router.route('/admin')
+        .delete(tokenValidation,adminValidation, initAdminDeletePostRequestHandler(sequelizeClient));
 
 
     return router;
@@ -82,11 +84,12 @@ function initUpdatePostRequestHandler(sequelizeClient: SequelizeClient): Request
 
             if(!post)
             {
-                throw new UnauthorizedError('POST_NOT_FOUND');
+                throw new HttpError('POST_NOT_FOUND', 404);
             }
 
             if (post.authorId !== auth.user.id) {
-                throw new UnauthorizedError('AUTH_TOKEN_INVALID');
+                throw new HttpError('AUTH_TOKEN_INVALID', 401);
+
             }
 
             await models.posts.update(
@@ -126,6 +129,31 @@ function initDeletePostRequestHandler(sequelizeClient: SequelizeClient): Request
         }
         if (post.authorId !== auth.user.id) {
             throw new UnauthorizedError('AUTH_TOKEN_INVALID');
+
+        }
+        await models.posts.destroy({
+            where: {id},
+        });
+        return  res.status(204).end();
+    };
+}
+
+function initAdminDeletePostRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
+    return async function adminDeletePostRequestHandler(req, res, next): Promise<void> {
+        const {models} = sequelizeClient;
+        const {id} = req.body as { id: number};
+        const post = await models.posts.findOne({
+            attributes: ['authorId'],
+            where: {id},
+            raw: true,
+        });
+
+        if(!post)
+        {
+            throw new UnauthorizedError('POST_NOT_FOUND');
+        }
+        if (post.isHidden) {
+            throw new UnauthorizedError('POST_IS_HIDDEN');
         }
         await models.posts.destroy({
             where: {id},
@@ -144,6 +172,7 @@ function initDeletePostRequestHandler(sequelizeClient: SequelizeClient): Request
         content,
     });
 }
+
 
 type CreatePostData = Pick<Post,'authorId' | 'title' | 'content'>;
 type UpdatePostData = Pick<Post,'id' | 'authorId' | 'title' | 'content' | 'isHidden'>;
