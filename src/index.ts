@@ -1,6 +1,5 @@
 import express from 'express';
 import 'dotenv/config';
-
 import { initSequelizeClient } from './sequelize';
 import { initUsersRouter } from './routers';
 import { initErrorRequestHandler, initNotFoundRequestHandler } from './middleware';
@@ -15,11 +14,11 @@ async function main(): Promise<void> {
   // so that they don't end up in the git repo
   const sequelizeClient = await initSequelizeClient({
     dialect: 'postgres',
-    host: 'localhost',
+    host: process.env['DB_HOST'],
     port: 5432,
-    username: 'postgres',
-    password: 'postgres',
-    database: 'bend-backend-task',
+    username: process.env['DB_USERNAME'],
+    password: process.env['DB_PASSWORD'],
+    database: process.env['DB_DATABASE'],
   });
 
   app.use(express.json());

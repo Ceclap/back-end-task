@@ -117,49 +117,57 @@ function initDeletePostRequestHandler(sequelizeClient: SequelizeClient): Request
         const {models} = sequelizeClient;
         const {auth} = req as unknown as { auth: RequestAuth };
         const {id} = req.body as { id: number};
-        const post = await models.posts.findOne({
-            attributes: ['authorId'],
-            where: {id},
-            raw: true,
-        });
+        try {
+            const post = await models.posts.findOne({
+                attributes: ['authorId'],
+                where: {id},
+                raw: true,
+            });
 
-        if(!post)
-        {
-            throw new UnauthorizedError('POST_NOT_FOUND');
-        }
-        if (post.authorId !== auth.user.id) {
-            throw new UnauthorizedError('AUTH_TOKEN_INVALID');
+            if (!post) {
+                throw new UnauthorizedError('POST_NOT_FOUND');
+            }
+            if (post.authorId !== auth.user.id) {
+                throw new UnauthorizedError('AUTH_TOKEN_INVALID');
 
+            }
+            await models.posts.destroy({
+                where: {id},
+            });
+            return res.status(204).end();
         }
-        await models.posts.destroy({
-            where: {id},
-        });
-        return  res.status(204).end();
+        catch (e) {
+            next(e);
+        }
     };
 }
 
 function initAdminDeletePostRequestHandler(sequelizeClient: SequelizeClient): RequestHandler {
     return async function adminDeletePostRequestHandler(req, res, next): Promise<void> {
         const {models} = sequelizeClient;
-        const {id} = req.body as { id: number};
-        const post = await models.posts.findOne({
-            attributes: ['authorId'],
-            where: {id},
-            raw: true,
-        });
+        try {
+            const {id} = req.body as { id: number };
+            const post = await models.posts.findOne({
+                attributes: ['authorId'],
+                where: {id},
+                raw: true,
+            });
 
-        if(!post)
-        {
-            throw new UnauthorizedError('POST_NOT_FOUND');
+            if (!post) {
+                throw new UnauthorizedError('POST_NOT_FOUND');
+            }
+            if (post.isHidden) {
+                throw new UnauthorizedError('POST_IS_HIDDEN');
+            }
+            await models.posts.destroy({
+                where: {id},
+            });
+            res.status(204).end();
         }
-        if (post.isHidden) {
-            throw new UnauthorizedError('POST_IS_HIDDEN');
+        catch (e) {
+            next(e);
         }
-        await models.posts.destroy({
-            where: {id},
-        });
-        res.status(204).end();
-    };
+        };
 }
 
 
